@@ -1,73 +1,49 @@
-#include <fstream>
+#include <thread>
+#include <iostream>
 #include <sstream>
-#include <vector>
-#include <map>
+#include <mutex>
+#include <queue>
+#include <semaphore.h>
+#include "TraderApplication.h"
+#include "ExchangeApplication.h"
+#include "Order.h"
+#include "OrderBook.h"
+#include "ExecutionReport.h"
 
+std::mutex bufferMutex;
+std::queue<Order> ordersBuffer;
+sem_t ordersSem;
 
-class MatchingEngine;
-
-class ExecutionReport;
-
-class Order;
-
-class Main {
-public:
-    void ProcessOrders(const std::string& csv_file_path) {
-        MatchingEngine matching_engine;
-        std::vector<ExecutionReport> execution_reports;
-
-        std::ifstream file(csv_file_path);
-        std::string line;
-        while (std::getline(file, line)) {
-            std::istringstream sstream(line);
-            std::string cell;
-            std::vector<std::string> row;
-            while (std::getline(sstream, cell, ',')) {
-                row.push_back(cell);
-            }
-            if (row.size() < 5) continue; // Skip invalid rows
-
-            // Create an Order object from the row
-            Order order(row[0], row[1], row[2], std::stod(row[3]), std::stoi(row[4]));
-            ExecutionReport report = ProcessSingleOrder(order, matching_engine);
-            execution_reports.push_back(report);
-        }
-
-        // Write execution reports to CSV
-        WriteExecutionReportsToCsv("execution_rep.csv", execution_reports);
-    }
-
-private:
-    ExecutionReport ProcessSingleOrder(Order& order, MatchingEngine& matching_engine) {
-        // Basic validation before processing
-        if (order.GetQuantity() % 10 != 0 || order.GetQuantity() < 10 || order.GetQuantity() > 1000) {
-            return ExecutionReport(order, 1, "Invalid Quantity");
-        } else if (order.GetInstrument() != "Rose" && order.GetInstrument() != "Lavender" &&
-                   order.GetInstrument() != "Lotus" && order.GetInstrument() != "Tulip" &&
-                   order.GetInstrument() != "Orchid") {
-            return ExecutionReport(order, 1, "Invalid Instrument");
-        } else if (order.GetPrice() <= 0.0) {
-            return ExecutionReport(order, 1, "Invalid Price");
-        } else {
-            // Process the order in the matching engine
-            matching_engine.ProcessOrder(order);
-            // Assume the order is accepted for now
-            return ExecutionReport(order, 0);
-        }
-    }
-
-    void WriteExecutionReportsToCsv(const std::string& file_path, const std::vector<ExecutionReport>& reports) {
-        std::ofstream out_file(file_path);
-        // Write header
-        out_file << "Client Order ID,Order ID,Instrument,Side,Price,Quantity,Status,Reason,Transaction Time\n";
-        for (const auto& report : reports) {
-            out_file << report.ToCsvRow() << std::endl;
-        }
-    }
-};
 
 int main() {
-    Main app;
-    app.ProcessOrders("orders.csv");
+
+    // Initialize semaphore with 0 to start as locked
+    sem_init(&ordersSem, 0, 0);
+    std::string filePath = "D:\\Projects\\MatchingEngine_Cpp\\orders.csv";
+
+    try {
+        OrderBook orderBook;
+        TraderApplication traderApp;
+        ExchangeApplication exchangeApp;
+
+
+        std::thread producer([&traderApp, filePath]() {
+            traderApp.produceOrders(filePath, std::ref(ordersBuffer), std::ref(ordersSem), std::ref(bufferMutex));
+        });
+
+
+        std::thread consumer([&exchangeApp, &orderBook]() {
+            exchangeApp.processOrders(orderBook, std::ref(ordersBuffer), std::ref(ordersSem), std::ref(bufferMutex));
+        });
+
+        producer.join();
+        consumer.join();
+
+        exchangeApp.writeExecutionReportsToFile("execution_rep.csv");
+    } catch (const std::exception& e) {
+        std::cerr << "Error in main thread: " << e.what() << std::endl;
+        return 1;
+    }
+
     return 0;
 }

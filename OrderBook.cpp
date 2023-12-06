@@ -1,82 +1,68 @@
-#include <vector>
-#include <string>
-#include <map>
-#include <algorithm>
+// OrderBook.cpp
+
 #include <iostream>
-#include <utility>
+#include "OrderBook.h"
 
+void OrderBook::addBuyOrder(const Order& order) {
+    buyOrders[order.instrument].push_back(order);
+}
 
-class Side;
-class Order;
+void OrderBook::addSellOrder(const Order& order) {
+    sellOrders[order.instrument].push_back(order);
+}
 
-class OrderBook {
-public:
-    OrderBook() {
-        // Initialize books for different instruments
-        books_["Rose"] = {std::vector<Order>(), std::vector<Order>()};
-        books_["Lavender"] = {std::vector<Order>(), std::vector<Order>()};
-        books_["Lotus"] = {std::vector<Order>(), std::vector<Order>()};
-        books_["Tulip"] = {std::vector<Order>(), std::vector<Order>()};
-        books_["Orchid"] = {std::vector<Order>(), std::vector<Order>()};
-    }
+void OrderBook::processOrders(ExecutionReport& executionReport) {
+    // Simplified order processing logic (matching buy and sell orders)
+    for (const auto& instrumentEntry : buyOrders) {
+        const std::string& instrument = instrumentEntry.first;
+        std::vector<Order> buyOrdersForInstrument = instrumentEntry.second;
 
-    void AddOrder(const Order& order) {
-        auto& book = books_[order.GetInstrument()];
-        if (order.GetSide() == Side::Buy) {
-            book.first.push_back(order);
-            // Sort bids by price descending, then by client order ID ascending
-            std::sort(book.first.begin(), book.first.end(), [](const Order& a, const Order& b) {
-                return (a.GetPrice() > b.GetPrice()) ||
-                       (a.GetPrice() == b.GetPrice() && a.GetClientOrderId() < b.GetClientOrderId());
-            });
-        } else {
-            book.second.push_back(order);
-            // Sort asks by price ascending, then by client order ID ascending
-            std::sort(book.second.begin(), book.second.end(), [](const Order& a, const Order& b) {
-                return (a.GetPrice() < b.GetPrice()) ||
-                       (a.GetPrice() == b.GetPrice() && a.GetClientOrderId() < b.GetClientOrderId());
-            });
-        }
-    }
+        if (sellOrders.find(instrument) != sellOrders.end()) {
+            std::vector<Order>& sellOrdersForInstrument = sellOrders[instrument];
 
-    std::pair<std::vector<Order>, int> MatchOrder(const Order& incoming_order) {
-        auto& book = books_[incoming_order.GetInstrument()];
-        std::vector<Order> matched_orders;
-        int remaining_quantity = incoming_order.GetQuantity();
+            for (Order &buyOrder : buyOrdersForInstrument) {
+                for (Order &sellOrder : sellOrdersForInstrument) {
+                    // Simplified matching logic, compare prices and execute if conditions met
+                    if (buyOrder.price >= sellOrder.price) {
+                        // Execute the order (simplified execution)
+                        executionReport.setOrderId("SystemGeneratedID");
+                        executionReport.setTransactionTime("20230101-120000.000");
+                        executionReport.clientOrderId = buyOrder.clientOrderId;
+                        executionReport.orderId = sellOrder.clientOrderId;
+                        executionReport.instrument = instrument;
+                        executionReport.side = 1; // Buy
+                        executionReport.price = buyOrder.price;
+                        executionReport.quantity = std::min(buyOrder.quantity, sellOrder.quantity);
+                        executionReport.status = 2; // Filled
 
-        auto& opposite_side_orders = (incoming_order.GetSide() == Side::Buy) ? book.second : book.first;
-        auto it = opposite_side_orders.begin();
+                        // Update order quantities (simplified logic)
+                        buyOrder.quantity -= executionReport.quantity;
+                        sellOrder.quantity -= executionReport.quantity;
 
-        while (it != opposite_side_orders.end() && remaining_quantity > 0) {
-            if ((incoming_order.GetSide() == Side::Buy && it->GetPrice() <= incoming_order.GetPrice()) ||
-                (incoming_order.GetSide() == Side::Sell && it->GetPrice() >= incoming_order.GetPrice())) {
-                int traded_quantity = std::min(it->GetQuantity(), remaining_quantity);
-                remaining_quantity -= traded_quantity;
-                it->SetQuantity(it->GetQuantity() - traded_quantity);
-                matched_orders.push_back(*it);
+                        // Remove filled orders
+                        if (buyOrder.quantity == 0) {
+                            // Remove buy order if fully filled
+                            buyOrdersForInstrument.pop_back();
+                        }
+                        if (sellOrder.quantity == 0) {
+                            // Remove sell order if fully filled
+                            sellOrdersForInstrument.pop_back();
+                        }
 
-                if (it->GetQuantity() == 0) {
-                    it = opposite_side_orders.erase(it);
-                } else {
-                    ++it;
+                        // Print execution report (you can modify this part based on your needs)
+                        std::cout << "Execution Report: "
+                                  << "Client Order ID: " << executionReport.clientOrderId
+                                  << ", Order ID: " << executionReport.orderId
+                                  << ", Instrument: " << executionReport.instrument
+                                  << ", Side: " << executionReport.side
+                                  << ", Price: " << executionReport.price
+                                  << ", Quantity: " << executionReport.quantity
+                                  << ", Status: " << executionReport.status
+                                  << ", Transaction Time: " << executionReport.transactionTime
+                                  << std::endl;
+                    }
                 }
-            } else {
-                ++it;
             }
         }
-        return {matched_orders, remaining_quantity};
     }
-
-    void RemoveOrder(const std::string& client_order_id, const std::string& instrument) {
-        auto& book = books_[instrument];
-        for (auto& side : {&book.first, &book.second}) {
-            side->erase(std::remove_if(side->begin(), side->end(),
-                                       [&client_order_id](const Order& order) {
-                                           return order.GetClientOrderId() == client_order_id;
-                                       }), side->end());
-        }
-    }
-
-private:
-    std::map<std::string, std::pair<std::vector<Order>, std::vector<Order>>> books_;
-};
+}
