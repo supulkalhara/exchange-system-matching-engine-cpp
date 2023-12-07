@@ -1,6 +1,7 @@
 #include <iostream>
 #include <queue>
 #include <semaphore.h>
+#include <functional>
 #include "ExchangeApplication.h"
 #include "OrderBook.h"
 
@@ -39,25 +40,18 @@ void ExchangeApplication::processOrders(OrderBook orderBook, std::queue<Order>& 
                 }
             }
 
+            orderBook.addOrder(order);
+
             // Process the order in the OrderBook
             ExecutionReport executionReport(order, 0, "");
-//                    orderBook.processOrders(order, executionReport);
+            orderBook.processOrders(executionReport, std::ref(executionReports));
         }
 
     } catch (const std::exception& e) {
         std::cerr << "Error in consumer thread: " << e.what() << std::endl;
     }
 
+    std::cout << "\n########\nAll Orders have been processed...\n########\n" << std::endl;
 
-    int status = 2; // Filled status
-    std::string reason;
-
-//    ExecutionReport report(order, status, reason);
-//    report.setOrderId("SystemGeneratedID"); // Set system-generated order ID
-//    report.setTransactionTime("20230101-120000.000"); // Set transaction time
-
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-//        executionReports.push_back(report);
-    }
+    writeExecutionReportsToFile("execution_rep.csv");
 }

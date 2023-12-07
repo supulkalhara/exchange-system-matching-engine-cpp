@@ -26,11 +26,9 @@ int main() {
         TraderApplication traderApp;
         ExchangeApplication exchangeApp;
 
-
         std::thread producer([&traderApp, filePath]() {
             traderApp.produceOrders(filePath, std::ref(ordersBuffer), std::ref(ordersSem), std::ref(bufferMutex));
         });
-
 
         std::thread consumer([&exchangeApp, &orderBook]() {
             exchangeApp.processOrders(orderBook, std::ref(ordersBuffer), std::ref(ordersSem), std::ref(bufferMutex));

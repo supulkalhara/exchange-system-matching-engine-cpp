@@ -14,11 +14,17 @@ class OrderBook {
 private:
     std::unordered_map<std::string, std::vector<Order>> buyOrders; // Map of instrument to buy orders
     std::unordered_map<std::string, std::vector<Order>> sellOrders; // Map of instrument to sell orders
+    std::vector<ExecutionReport> executionReports;  // Vector to store execution reports
 
 public:
+    void addOrder(const Order& order);
     void addBuyOrder(const Order& order);
     void addSellOrder(const Order& order);
-    void processOrders(ExecutionReport& executionReport);
+    void
+    processSideOrders(std::unordered_map<std::string, std::vector<Order>> &sideOrders,
+                      ExecutionReport &executionReport);
+
+    void processOrders(ExecutionReport &executionReport, std::vector<ExecutionReport> executionReports);
 };
 
 #endif //C___PROJECT_ORDERBOOK_H
