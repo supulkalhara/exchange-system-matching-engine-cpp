@@ -61,8 +61,8 @@ void OrderBook::processOrders(Order& order) {
     } else if (order.side == 2) {
         // Process buy orders
         processBuyOrders(order);
-
     }
+    OrderBook::printOrderBook(order.instrument);
 }
 
 void OrderBook::processSellOrders(Order &curOrder) {
@@ -93,7 +93,7 @@ void OrderBook::processSellOrders(Order &curOrder) {
     }
 
     // Simplified matching logic (compare prices and execute if conditions met)
-    for (size_t i = 0; i < ordersForInstrument.size() - 1; ++i) {
+    for (size_t i = 0; i < ordersForInstrument.size(); ++i) {
         Order& sellOrder = ordersForInstrument[i];
 
         if (sellOrder.price <= curOrder.price) {
@@ -152,6 +152,8 @@ void OrderBook::processSellOrders(Order &curOrder) {
         std::cout<<"Writing to the report"<<std::endl;
         ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
         addOrder(curOrder);
+    } else {
+        addOrder(curOrder);
     }
 }
 
@@ -183,7 +185,7 @@ void OrderBook::processBuyOrders(Order &curOrder) {
     }
 
     // Simplified matching logic (compare prices and execute if conditions met)
-    for (size_t i = 0; i < ordersForInstrument.size() - 1; ++i) {
+    for (size_t i = 0; i < ordersForInstrument.size(); ++i) {
         Order &buyOrder = ordersForInstrument[i];
 
         if (buyOrder.price >= curOrder.price) {
@@ -228,7 +230,7 @@ void OrderBook::processBuyOrders(Order &curOrder) {
         }
     }
 
-    if (curOrder.quantity != 0) {
+    if (curOrder.quantity == initialQuantity) {
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
         curOrderReport.status = 0; // New
@@ -237,5 +239,31 @@ void OrderBook::processBuyOrders(Order &curOrder) {
         std::cout << "Writing to the report" << std::endl;
         ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
         addOrder(curOrder);
+    } else {
+        addOrder(curOrder);
     }
+}
+
+void OrderBook::printOrderBook(const std::string& instrument) {
+    std::vector<Order> &buySide = buyOrders[instrument];
+    std::vector<Order> &sellSide = sellOrders[instrument];
+
+    std::cout << "*****************************************************************" << std::endl;
+
+    std::cout << "Buy Side" << std::endl;
+    std::cout << "OrderId\tQty\tPrice\t" << std::endl;
+    for(auto &obj: buySide){
+        std::cout << obj.getOrderId() << "\t" << obj.quantity << "\t" << obj.price << std::endl;
+    }
+
+    std::cout << "*****************************************************************" << std::endl;
+
+    std::cout << "Sell Side" << std::endl;
+    std::cout << "Price\tQty\tOrderId" << std::endl;
+    for(auto &obj: sellSide){
+        std::cout << obj.price << "\t" << obj.quantity << "\t" << obj.getOrderId() << std::endl;
+    }
+
+    std::cout << "*****************************************************************" << std::endl;
+
 }

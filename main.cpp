@@ -19,7 +19,7 @@ int main() {
 
     // Initialize semaphore with 0 to start as locked
     sem_init(&ordersSem, 0, 0);
-    std::string filePath = "D:\\lseg_project\\exchange-system-matching-engine-cpp\\inputs\\example4.csv";
+    std::string filePath = "D:\\lseg_project\\exchange-system-matching-engine-cpp\\inputs\\example5.csv";
 
     try {
         OrderBook orderBook;

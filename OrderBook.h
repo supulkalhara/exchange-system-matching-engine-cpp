@@ -23,8 +23,8 @@ public:
     void addSellOrder(const Order& order);
     void processBuyOrders(Order &curOrder);
     void processSellOrders(Order &curOrder);
-
     void processOrders(Order& order);
+    void printOrderBook(const std::string& instrument);
 };
 
 #endif //C___PROJECT_ORDERBOOK_H

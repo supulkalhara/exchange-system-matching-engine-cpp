@@ -6,7 +6,7 @@
 #include "ExchangeApplication.h"
 #include "OrderBook.h"
 
-std::string ExchangeApplication::outFilePath =  "D:\\lseg_project\\exchange-system-matching-engine-cpp\\outputs\\exec_report_example4.csv";
+std::string ExchangeApplication::outFilePath =  "D:\\lseg_project\\exchange-system-matching-engine-cpp\\outputs\\exec_report_example5.csv";
 
 void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &executionReport, const std::string &filename) {
     std::ofstream file(filename, std::ios_base::app);
