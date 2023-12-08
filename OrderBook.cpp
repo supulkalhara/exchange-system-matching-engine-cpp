@@ -74,7 +74,7 @@ void OrderBook::processSellOrders(Order &curOrder) {
     curOrderReport.setTransactionTime("20230101-120000.000");
     curOrderReport.clientOrderId = curOrder.clientOrderId;
     curOrderReport.instrument = curOrder.instrument;
-    curOrderReport.side = (&sellOrders == &buyOrders) ? 1 : 2; // Buy: 1, Sell: 2
+    curOrderReport.side = curOrder.side ; // Buy: 1, Sell: 2
 
     if (ordersForInstrument.empty()) {
         std::cout << "\nNot enough orders for matching, skip!" << std::endl;
@@ -107,8 +107,8 @@ void OrderBook::processSellOrders(Order &curOrder) {
             ExecutionReport matchedOrderReport(sellOrder, 0, "");
             matchedOrderReport.setOrderId(sellOrder.getOrderId());
             matchedOrderReport.setTransactionTime("20230101-120000.000");
-            matchedOrderReport.clientOrderId = curOrder.clientOrderId;
-            matchedOrderReport.instrument = curOrder.instrument;
+            matchedOrderReport.clientOrderId = sellOrder.clientOrderId;
+            matchedOrderReport.instrument = sellOrder.instrument;
             matchedOrderReport.side = 2; // Buy: 1, Sell: 2
             matchedOrderReport.price = sellOrder.price;
             matchedOrderReport.quantity = std::min(sellOrder.quantity, curOrder.quantity);
@@ -165,7 +165,7 @@ void OrderBook::processBuyOrders(Order &curOrder) {
     curOrderReport.setTransactionTime("20230101-120000.000");
     curOrderReport.clientOrderId = curOrder.clientOrderId;
     curOrderReport.instrument = curOrder.instrument;
-    curOrderReport.side = (&sellOrders == &buyOrders) ? 1 : 2; // Buy: 1, Sell: 2
+    curOrderReport.side = curOrderReport.side = curOrder.side; // Buy: 1, Sell: 2
 
     if (ordersForInstrument.empty()) {
         std::cout << "\nNot enough orders for matching, skip!" << std::endl;
@@ -198,8 +198,8 @@ void OrderBook::processBuyOrders(Order &curOrder) {
             ExecutionReport matchedOrderReport(buyOrder, 0, "");
             matchedOrderReport.setOrderId(buyOrder.getOrderId());
             matchedOrderReport.setTransactionTime("20230101-120000.000");
-            matchedOrderReport.clientOrderId = curOrder.clientOrderId;
-            matchedOrderReport.instrument = curOrder.instrument;
+            matchedOrderReport.clientOrderId = buyOrder.clientOrderId;
+            matchedOrderReport.instrument = buyOrder.instrument;
             matchedOrderReport.side = 2; // Buy: 1, Sell: 2
             matchedOrderReport.price = buyOrder.price;
             matchedOrderReport.quantity = std::min(buyOrder.quantity, curOrder.quantity);
