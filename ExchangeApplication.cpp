@@ -6,7 +6,7 @@
 #include "ExchangeApplication.h"
 #include "OrderBook.h"
 
-std::string ExchangeApplication::outFilePath =  "D:\\lseg_project\\exchange-system-matching-engine-cpp\\outputs\\exec_report_example5.csv";
+std::string ExchangeApplication::outFilePath =  "D:\\lseg_project\\exchange-system-matching-engine-cpp\\outputs\\exec_report_example6.csv";
 
 void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &executionReport, const std::string &filename) {
     std::ofstream file(filename, std::ios_base::app);
@@ -14,11 +14,13 @@ void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &exe
         throw std::runtime_error("Error: Unable to open file " + filename);
     }
 
-    std::string status = "Fill";
-    if (executionReport.status == 0){
-        status = "New";
-    } else if (executionReport.status == 1) {
+    std::string status = "New";
+    if (executionReport.status == 1){
         status = "PFill";
+    } else if (executionReport.status == 2) {
+        status = "Fill";
+    } else if (executionReport.status == 3) {
+        status = "Reject";
     }
 
     file << executionReport.clientOrderId << " " << executionReport.orderId << " " << executionReport.instrument

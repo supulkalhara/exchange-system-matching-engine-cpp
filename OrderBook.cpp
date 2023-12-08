@@ -6,7 +6,7 @@
 #include "OrderBook.h"
 #include "ExchangeApplication.h"
 
-std::unordered_map<std::string, int> OrderBook::curIds = { { "Rose", 1 }, { "Lavender", 1}, { "Lotus", 1 }, { "Tulip", 1}, { "Orchid", 1}};
+int OrderBook::curId = 1;
 
 void OrderBook::addOrder(const Order& order) {
     if (order.side == 1) {
@@ -53,29 +53,43 @@ void OrderBook::addSellOrder(const Order& order) {
 
 void OrderBook::processOrders(Order& order) {
     std::cout<<"Order side: "<<order.side<<std::endl;
-    order.setOrderId(OrderBook::curIds[order.instrument]);
-    OrderBook::curIds[order.instrument]++;
+    order.setOrderId(OrderBook::curId);
+    OrderBook::curId++;
+
+    ExecutionReport curOrderReport(order, 0, "");
+    curOrderReport.setOrderId(order.getOrderId());
+    curOrderReport.clientOrderId = order.clientOrderId;
+    curOrderReport.instrument = order.instrument;
+    curOrderReport.side = order.side ; // Buy: 1, Sell: 2
+
+    std::string validationResult = order.isValid();
+    if (validationResult != "OK"){
+        curOrderReport.price = order.price;
+        curOrderReport.quantity = order.quantity;
+        curOrderReport.status = 3; // Reject
+        curOrderReport.reason = validationResult;
+        ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+        OrderBook::printOrderBook(order.instrument);
+        return;
+    }
+
     if (order.side == 1) {
         // Process sell orders
-        processSellOrders(order);
+        processSellOrders(order, curOrderReport);
     } else if (order.side == 2) {
         // Process buy orders
-        processBuyOrders(order);
+        processBuyOrders(order, curOrderReport);
     }
     OrderBook::printOrderBook(order.instrument);
 }
 
-void OrderBook::processSellOrders(Order &curOrder) {
+void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderReport) {
     int initialQuantity = curOrder.quantity;
     std::cout << "\nMatching buy order..." << std::endl;
     std::vector<Order>&ordersForInstrument = sellOrders[curOrder.instrument];
 
-    ExecutionReport curOrderReport(curOrder, 0, "");
-    curOrderReport.setOrderId(curOrder.getOrderId());
+
     curOrderReport.setTransactionTime("20230101-120000.000");
-    curOrderReport.clientOrderId = curOrder.clientOrderId;
-    curOrderReport.instrument = curOrder.instrument;
-    curOrderReport.side = curOrder.side ; // Buy: 1, Sell: 2
 
     if (ordersForInstrument.empty()) {
         std::cout << "\nNot enough orders for matching, skip!" << std::endl;
@@ -157,17 +171,12 @@ void OrderBook::processSellOrders(Order &curOrder) {
     }
 }
 
-void OrderBook::processBuyOrders(Order &curOrder) {
+void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderReport) {
     int initialQuantity = curOrder.quantity;
     std::cout << "\nMatching sell order..." << std::endl;
     std::vector<Order> &ordersForInstrument = buyOrders[curOrder.instrument];
 
-    ExecutionReport curOrderReport(curOrder, 0, "");
-    curOrderReport.setOrderId(curOrder.getOrderId());
     curOrderReport.setTransactionTime("20230101-120000.000");
-    curOrderReport.clientOrderId = curOrder.clientOrderId;
-    curOrderReport.instrument = curOrder.instrument;
-    curOrderReport.side = curOrder.side; // Buy: 1, Sell: 2
 
     if (ordersForInstrument.empty()) {
         std::cout << "\nNot enough orders for matching, skip!" << std::endl;
@@ -176,8 +185,6 @@ void OrderBook::processBuyOrders(Order &curOrder) {
         curOrderReport.quantity = curOrder.quantity;
         curOrderReport.status = 0; // New
 
-        executionReports.push_back(curOrderReport);
-        std::cout << "Writing to the report" << std::endl;
         ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
 
         addOrder(curOrder);
