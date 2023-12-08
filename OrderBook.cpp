@@ -66,10 +66,11 @@ void OrderBook::processOrders(Order& order) {
 }
 
 void OrderBook::processSellOrders(Order &curOrder) {
-    ExecutionReport curOrderReport(curOrder, 0, "");
+    int initialQuantity = curOrder.quantity;
     std::cout << "\nMatching buy order..." << std::endl;
     std::vector<Order>&ordersForInstrument = sellOrders[curOrder.instrument];
 
+    ExecutionReport curOrderReport(curOrder, 0, "");
     curOrderReport.setOrderId(curOrder.getOrderId());
     curOrderReport.setTransactionTime("20230101-120000.000");
     curOrderReport.clientOrderId = curOrder.clientOrderId;
@@ -101,8 +102,6 @@ void OrderBook::processSellOrders(Order &curOrder) {
             // Execute the order (simplified execution)
             curOrderReport.price = sellOrder.price;
             curOrderReport.quantity = std::min(sellOrder.quantity, curOrder.quantity);
-            curOrderReport.status = 2; // Filled
-            ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
 
             ExecutionReport matchedOrderReport(sellOrder, 0, "");
             matchedOrderReport.setOrderId(sellOrder.getOrderId());
@@ -112,7 +111,13 @@ void OrderBook::processSellOrders(Order &curOrder) {
             matchedOrderReport.side = 2; // Buy: 1, Sell: 2
             matchedOrderReport.price = sellOrder.price;
             matchedOrderReport.quantity = std::min(sellOrder.quantity, curOrder.quantity);
-            matchedOrderReport.status = 2; // Filled
+
+            if (matchedOrderReport.quantity < sellOrder.quantity){
+                matchedOrderReport.status = 1; // PFilled
+            } else {
+                matchedOrderReport.status = 2; // Filled
+            }
+
             ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport, ExchangeApplication::outFilePath);
 
             // Update order quantities (simplified logic)
@@ -125,26 +130,20 @@ void OrderBook::processSellOrders(Order &curOrder) {
                 --i; // Adjust index after removal
             }
 
-            // Print execution report (you can modify this part based on your needs)
-            std::cout << "Execution Report: "
-                      << "Client Order ID: " << curOrderReport.clientOrderId
-                      << ", Order ID: " << curOrderReport.orderId
-                      << ", Instrument: " << curOrderReport.instrument
-                      << ", Side: " << curOrderReport.side
-                      << ", Price: " << curOrderReport.price
-                      << ", Quantity: " << curOrderReport.quantity
-                      << ", Status: " << curOrderReport.status
-                      << ", Transaction Time: " << curOrderReport.transactionTime
-                      << std::endl;
             if (curOrder.quantity == 0) {
-                break;
+                curOrderReport.status = 2; // Filled
+                ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+                return;
+            } else if (curOrder.quantity < initialQuantity){
+                curOrderReport.status = 1; // PFilled
+                ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
             }
         } else {
             break;
         }
     }
 
-    if (curOrder.quantity != 0) {
+    if (curOrder.quantity == initialQuantity) {
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
         curOrderReport.status = 0; // New
@@ -157,15 +156,16 @@ void OrderBook::processSellOrders(Order &curOrder) {
 }
 
 void OrderBook::processBuyOrders(Order &curOrder) {
-    ExecutionReport curOrderReport(curOrder, 0, "");
+    int initialQuantity = curOrder.quantity;
     std::cout << "\nMatching sell order..." << std::endl;
-    std::vector<Order>&ordersForInstrument = buyOrders[curOrder.instrument];
+    std::vector<Order> &ordersForInstrument = buyOrders[curOrder.instrument];
 
+    ExecutionReport curOrderReport(curOrder, 0, "");
     curOrderReport.setOrderId(curOrder.getOrderId());
     curOrderReport.setTransactionTime("20230101-120000.000");
     curOrderReport.clientOrderId = curOrder.clientOrderId;
     curOrderReport.instrument = curOrder.instrument;
-    curOrderReport.side = curOrderReport.side = curOrder.side; // Buy: 1, Sell: 2
+    curOrderReport.side = curOrder.side; // Buy: 1, Sell: 2
 
     if (ordersForInstrument.empty()) {
         std::cout << "\nNot enough orders for matching, skip!" << std::endl;
@@ -175,7 +175,7 @@ void OrderBook::processBuyOrders(Order &curOrder) {
         curOrderReport.status = 0; // New
 
         executionReports.push_back(curOrderReport);
-        std::cout<<"Writing to the report"<<std::endl;
+        std::cout << "Writing to the report" << std::endl;
         ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
 
         addOrder(curOrder);
@@ -184,7 +184,7 @@ void OrderBook::processBuyOrders(Order &curOrder) {
 
     // Simplified matching logic (compare prices and execute if conditions met)
     for (size_t i = 0; i < ordersForInstrument.size() - 1; ++i) {
-        Order& buyOrder = ordersForInstrument[i];
+        Order &buyOrder = ordersForInstrument[i];
 
         if (buyOrder.price >= curOrder.price) {
             std::cout << "\nbuyOrder.price <= curOrder.price" << std::endl;
@@ -192,18 +192,20 @@ void OrderBook::processBuyOrders(Order &curOrder) {
             // Execute the order (simplified execution)
             curOrderReport.price = buyOrder.price;
             curOrderReport.quantity = std::min(buyOrder.quantity, curOrder.quantity);
-            curOrderReport.status = 2; // Filled
-            ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
 
             ExecutionReport matchedOrderReport(buyOrder, 0, "");
             matchedOrderReport.setOrderId(buyOrder.getOrderId());
             matchedOrderReport.setTransactionTime("20230101-120000.000");
             matchedOrderReport.clientOrderId = buyOrder.clientOrderId;
             matchedOrderReport.instrument = buyOrder.instrument;
-            matchedOrderReport.side = 2; // Buy: 1, Sell: 2
+            matchedOrderReport.side = 1; // Buy: 1, Sell: 2
             matchedOrderReport.price = buyOrder.price;
             matchedOrderReport.quantity = std::min(buyOrder.quantity, curOrder.quantity);
-            matchedOrderReport.status = 2; // Filled
+            if (matchedOrderReport.quantity < buyOrder.quantity) {
+                matchedOrderReport.status = 1; // PFilled
+            } else {
+                matchedOrderReport.status = 2; // Filled
+            }
             ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport, ExchangeApplication::outFilePath);
 
             // Update order quantities (simplified logic)
@@ -216,20 +218,13 @@ void OrderBook::processBuyOrders(Order &curOrder) {
                 --i; // Adjust index after removal
             }
             if (curOrder.quantity == 0) {
-                break;
+                curOrderReport.status = 2; // Filled
+                ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+                return;
+            } else if (curOrder.quantity < initialQuantity) {
+                curOrderReport.status = 1; // PFilled
+                ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
             }
-
-            // Print execution report (you can modify this part based on your needs)
-            std::cout << "Execution Report: "
-                      << "Client Order ID: " << curOrderReport.clientOrderId
-                      << ", Order ID: " << curOrderReport.orderId
-                      << ", Instrument: " << curOrderReport.instrument
-                      << ", Side: " << curOrderReport.side
-                      << ", Price: " << curOrderReport.price
-                      << ", Quantity: " << curOrderReport.quantity
-                      << ", Status: " << curOrderReport.status
-                      << ", Transaction Time: " << curOrderReport.transactionTime
-                      << std::endl;
         }
     }
 
@@ -239,7 +234,7 @@ void OrderBook::processBuyOrders(Order &curOrder) {
         curOrderReport.status = 0; // New
 
         executionReports.push_back(curOrderReport);
-        std::cout<<"Writing to the report"<<std::endl;
+        std::cout << "Writing to the report" << std::endl;
         ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
         addOrder(curOrder);
     }

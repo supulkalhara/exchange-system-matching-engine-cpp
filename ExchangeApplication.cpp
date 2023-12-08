@@ -6,7 +6,7 @@
 #include "ExchangeApplication.h"
 #include "OrderBook.h"
 
-std::string ExchangeApplication::outFilePath =  "D:\\lseg_project\\exchange-system-matching-engine-cpp\\outputs\\exec_report_example3.csv";
+std::string ExchangeApplication::outFilePath =  "D:\\lseg_project\\exchange-system-matching-engine-cpp\\outputs\\exec_report_example4.csv";
 
 void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &executionReport, const std::string &filename) {
     std::ofstream file(filename, std::ios_base::app);
@@ -18,7 +18,7 @@ void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &exe
     if (executionReport.status == 0){
         status = "New";
     } else if (executionReport.status == 1) {
-        status = "Partial";
+        status = "PFill";
     }
 
     file << executionReport.clientOrderId << " " << executionReport.orderId << " " << executionReport.instrument
