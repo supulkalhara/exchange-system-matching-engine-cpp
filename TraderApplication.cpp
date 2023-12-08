@@ -13,7 +13,7 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
         std::ifstream file(filePath);
 
         if (!file.is_open()) {
-            throw std::runtime_error("Error: Unable to open file 'orders.csv'");
+            throw std::runtime_error("Error: Unable to open file 'example2.csv'");
         }
 
         // Skip the header line
@@ -21,7 +21,6 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
         std::getline(file, header);
 
         std::string line;
-
         while (std::getline(file, line)) {
             // Parse CSV line and create Order
             std::stringstream lineStream(line);
@@ -43,7 +42,7 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
 
             Order order(clientOrderId, instrument, side, price, quantity);
 
-            std::cout << "\nProcessing Order: "
+            std::cout << "\nProducing Order: "
                       << "Client Order ID: " << order.clientOrderId
                       << ", Instrument: " << order.instrument
                       << ", Side: " << order.side
@@ -52,7 +51,7 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
                       << std::endl;
 
             {
-                std::lock_guard<std::mutex> lock(bufferMutex);
+//                std::lock_guard<std::mutex> lock(bufferMutex);
                 std::cout << "Pushed to the orders buffer" << std::endl;
                 ordersBuffer.push(order);
             }

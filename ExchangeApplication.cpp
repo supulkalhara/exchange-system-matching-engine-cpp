@@ -2,21 +2,28 @@
 #include <queue>
 #include <semaphore.h>
 #include <functional>
+#include <string>
 #include "ExchangeApplication.h"
 #include "OrderBook.h"
 
-void ExchangeApplication::writeExecutionReportsToFile(const char* filename) {
-    std::ofstream file(filename);
+std::string ExchangeApplication::outFilePath =  "D:\\lseg_project\\exchange-system-matching-engine-cpp\\outputs\\exec_report_example3.csv";
+
+void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &executionReport, const std::string &filename) {
+    std::ofstream file(filename, std::ios_base::app);
     if (!file.is_open()) {
-        throw std::runtime_error("Error: Unable to open file " + std::string(filename));
+        throw std::runtime_error("Error: Unable to open file " + filename);
     }
 
-    for (const auto& report : executionReports) {
-        file << report.clientOrderId << " " << report.orderId << " " << report.instrument
-             << " " << report.side << " " << report.price << " " << report.quantity
-             << " " << report.status << " " << report.reason << " " << report.transactionTime << std::endl;
+    std::string status = "Fill";
+    if (executionReport.status == 0){
+        status = "New";
+    } else if (executionReport.status == 1) {
+        status = "Partial";
     }
 
+    file << executionReport.clientOrderId << " " << executionReport.orderId << " " << executionReport.instrument
+     << " " << executionReport.side << " " << executionReport.price << " " << executionReport.quantity
+     << " " << status << " " << executionReport.reason << " " << executionReport.transactionTime << std::endl;
     file.close();
 }
 
@@ -40,11 +47,10 @@ void ExchangeApplication::processOrders(OrderBook orderBook, std::queue<Order>& 
                 }
             }
 
-            orderBook.addOrder(order);
+//            orderBook.addOrder(order);
 
             // Process the order in the OrderBook
-            ExecutionReport executionReport(order, 0, "");
-            orderBook.processOrders(executionReport, std::ref(executionReports));
+            orderBook.processOrders(order);
         }
 
     } catch (const std::exception& e) {
@@ -53,5 +59,5 @@ void ExchangeApplication::processOrders(OrderBook orderBook, std::queue<Order>& 
 
     std::cout << "\n########\nAll Orders have been processed...\n########\n" << std::endl;
 
-    writeExecutionReportsToFile("execution_rep.csv");
+//    writeExecutionReportsToFile("execution_rep.csv");
 }

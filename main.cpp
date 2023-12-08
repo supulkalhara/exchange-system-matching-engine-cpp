@@ -19,7 +19,7 @@ int main() {
 
     // Initialize semaphore with 0 to start as locked
     sem_init(&ordersSem, 0, 0);
-    std::string filePath = "D:\\Projects\\MatchingEngine_Cpp\\orders.csv";
+    std::string filePath = "D:\\lseg_project\\exchange-system-matching-engine-cpp\\inputs\\example3.csv";
 
     try {
         OrderBook orderBook;
@@ -36,8 +36,6 @@ int main() {
 
         producer.join();
         consumer.join();
-
-        exchangeApp.writeExecutionReportsToFile("execution_rep.csv");
     } catch (const std::exception& e) {
         std::cerr << "Error in main thread: " << e.what() << std::endl;
         return 1;

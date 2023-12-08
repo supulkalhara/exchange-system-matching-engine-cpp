@@ -7,6 +7,8 @@
 #include <vector>
 #include <mutex>
 #include <fstream>
+#include <queue>
+#include <semaphore.h>
 #include "ExecutionReport.h"
 #include "OrderBook.h"
 
@@ -16,8 +18,8 @@ private:
     std::mutex mtx;
 
 public:
-    void writeExecutionReportsToFile(const char *filename);
-
+    static std::string outFilePath;
+    static void writeExecutionReportsToFile(const ExecutionReport &executionReport, const std::string& filename);
     void processOrders(OrderBook orderBook, std::queue<Order> &ordersBuffer, sem_t &ordersSem, std::mutex &bufferMutex);
 };
 
