@@ -5,6 +5,9 @@
 #ifndef C___PROJECT_ORDERBOOK_H
 #define C___PROJECT_ORDERBOOK_H
 
+#define SIDE_SELL 1
+#define  SIDE_BUY 2
+
 #include <unordered_map>
 #include <vector>
 #include "Order.h"
@@ -15,16 +18,16 @@ private:
     std::unordered_map<std::string, std::vector<Order>> buyOrders; // Map of instrument to buy orders
     std::unordered_map<std::string, std::vector<Order>> sellOrders; // Map of instrument to sell orders
     std::vector<ExecutionReport> executionReports;  // Vector to store execution reports
+    static int curId;
 
 public:
     void addOrder(const Order& order);
     void addBuyOrder(const Order& order);
     void addSellOrder(const Order& order);
-    void
-    processSideOrders(std::unordered_map<std::string, std::vector<Order>> &sideOrders,
-                      ExecutionReport &executionReport);
-
-    void processOrders(ExecutionReport &executionReport, std::vector<ExecutionReport> executionReports);
+    void processBuyOrders(Order &curOrder, ExecutionReport &curOrderReport);
+    void processSellOrders(Order &curOrder,  ExecutionReport &curOrderReport);
+    void processOrders(Order& order);
+    void printOrderBook(const std::string& instrument);
 };
 
 #endif //C___PROJECT_ORDERBOOK_H
