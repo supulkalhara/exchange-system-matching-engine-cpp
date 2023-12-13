@@ -18,7 +18,7 @@ public:
 
     void
     produceOrders(const std::string &filePath, std::queue<Order> &ordersBuffer, sem_t &ordersSem,
-                  std::mutex &bufferMutex);
+                  std::mutex &bufferMutex, bool &finished);
 };
 
 #endif //C___PROJECT_TRADERAPPLICATION_H

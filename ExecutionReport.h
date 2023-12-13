@@ -4,6 +4,11 @@
 #include <string>
 #include "Order.h"
 
+#define STATE_NEW 0
+#define STATE_PFILLED 1
+#define STATE_FILLED 2
+#define STATE_REJECT 3
+
 class ExecutionReport {
 public:
     std::string clientOrderId;

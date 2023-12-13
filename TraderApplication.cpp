@@ -7,7 +7,7 @@
 #include "TraderApplication.h"
 
 
-void TraderApplication::produceOrders(const std::string &filePath, std::queue<Order>& ordersBuffer, sem_t& ordersSem, std::mutex& bufferMutex) {
+void TraderApplication::produceOrders(const std::string &filePath, std::queue<Order>& ordersBuffer, sem_t& ordersSem, std::mutex& finishedMutex, bool &finished) {
     try {
         std::cout << "Producer reading orders" << std::endl;
         std::ifstream file(filePath);
@@ -63,4 +63,7 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
     } catch (const std::exception &e) {
         std::cerr << "Error in producer thread: " << e.what() << std::endl;
     }
+    finishedMutex.lock();
+    finished = true;
+    finishedMutex.unlock();
 }

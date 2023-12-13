@@ -5,6 +5,9 @@
 #ifndef C___PROJECT_ORDERBOOK_H
 #define C___PROJECT_ORDERBOOK_H
 
+#define SIDE_SELL 1
+#define  SIDE_BUY 2
+
 #include <unordered_map>
 #include <vector>
 #include "Order.h"

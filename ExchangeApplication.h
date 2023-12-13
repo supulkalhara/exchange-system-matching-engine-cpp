@@ -16,11 +16,11 @@ class ExchangeApplication {
 private:
     std::vector<ExecutionReport> executionReports;
     std::mutex mtx;
-
-public:
     static std::string outFilePath;
-    static void writeExecutionReportsToFile(const ExecutionReport &executionReport, const std::string& filename);
-    void processOrders(OrderBook orderBook, std::queue<Order> &ordersBuffer, sem_t &ordersSem, std::mutex &bufferMutex);
+public:
+    static void writeExecutionReportsToFile(const ExecutionReport &executionReport);
+    static void setOutFilePath(std::string filePath);
+    void processOrders(OrderBook orderBook, std::queue<Order> &ordersBuffer, sem_t &ordersSem, std::mutex &bufferMutex, bool &finished);
 };
 
 #endif //C___PROJECT_EXCHANGEAPPLICATION_H

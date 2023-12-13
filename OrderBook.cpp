@@ -1,7 +1,6 @@
 // OrderBook.cpp
 
 #include <iostream>
-#include <mutex>
 #include <algorithm>
 #include "OrderBook.h"
 #include "ExchangeApplication.h"
@@ -66,17 +65,17 @@ void OrderBook::processOrders(Order& order) {
     if (validationResult != "OK"){
         curOrderReport.price = order.price;
         curOrderReport.quantity = order.quantity;
-        curOrderReport.status = 3; // Reject
+        curOrderReport.status = STATE_REJECT; // Reject
         curOrderReport.reason = validationResult;
-        ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+        ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
         OrderBook::printOrderBook(order.instrument);
         return;
     }
 
-    if (order.side == 1) {
+    if (order.side == SIDE_SELL) {
         // Process sell orders
         processSellOrders(order, curOrderReport);
-    } else if (order.side == 2) {
+    } else if (order.side == SIDE_BUY) {
         // Process buy orders
         processBuyOrders(order, curOrderReport);
     }
@@ -96,11 +95,11 @@ void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderRepo
         // Not enough orders for matching, skip
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
-        curOrderReport.status = 0; // New
+        curOrderReport.status = STATE_NEW; // New
 
         executionReports.push_back(curOrderReport);
         std::cout<<"Writing to the report"<<std::endl;
-        ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+        ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
 
         addOrder(curOrder);
         return;
@@ -122,17 +121,17 @@ void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderRepo
             matchedOrderReport.setTransactionTime("20230101-120000.000");
             matchedOrderReport.clientOrderId = sellOrder.clientOrderId;
             matchedOrderReport.instrument = sellOrder.instrument;
-            matchedOrderReport.side = 2; // Buy: 1, Sell: 2
+            matchedOrderReport.side = SIDE_SELL; // Buy: 1, Sell: 2
             matchedOrderReport.price = sellOrder.price;
             matchedOrderReport.quantity = std::min(sellOrder.quantity, curOrder.quantity);
 
             if (matchedOrderReport.quantity < sellOrder.quantity){
-                matchedOrderReport.status = 1; // PFilled
+                matchedOrderReport.status = STATE_PFILLED; // PFilled
             } else {
-                matchedOrderReport.status = 2; // Filled
+                matchedOrderReport.status = STATE_FILLED; // Filled
             }
 
-            ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport, ExchangeApplication::outFilePath);
+            ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport);
 
             // Update order quantities (simplified logic)
             sellOrder.quantity -= curOrderReport.quantity;
@@ -145,12 +144,12 @@ void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderRepo
             }
 
             if (curOrder.quantity == 0) {
-                curOrderReport.status = 2; // Filled
-                ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+                curOrderReport.status = STATE_FILLED; // Filled
+                ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
                 return;
             } else if (curOrder.quantity < initialQuantity){
-                curOrderReport.status = 1; // PFilled
-                ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+                curOrderReport.status = STATE_PFILLED; // PFilled
+                ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
             }
         } else {
             break;
@@ -160,11 +159,11 @@ void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderRepo
     if (curOrder.quantity == initialQuantity) {
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
-        curOrderReport.status = 0; // New
+        curOrderReport.status = STATE_NEW; // New
 
         executionReports.push_back(curOrderReport);
         std::cout<<"Writing to the report"<<std::endl;
-        ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+        ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
         addOrder(curOrder);
     } else {
         addOrder(curOrder);
@@ -183,9 +182,9 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
         // Not enough orders for matching, skip
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
-        curOrderReport.status = 0; // New
+        curOrderReport.status = STATE_NEW; // New
 
-        ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+        ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
 
         addOrder(curOrder);
         return;
@@ -207,15 +206,15 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
             matchedOrderReport.setTransactionTime("20230101-120000.000");
             matchedOrderReport.clientOrderId = buyOrder.clientOrderId;
             matchedOrderReport.instrument = buyOrder.instrument;
-            matchedOrderReport.side = 1; // Buy: 1, Sell: 2
+            matchedOrderReport.side = SIDE_BUY; // Buy: 1, Sell: 2
             matchedOrderReport.price = buyOrder.price;
             matchedOrderReport.quantity = std::min(buyOrder.quantity, curOrder.quantity);
             if (matchedOrderReport.quantity < buyOrder.quantity) {
-                matchedOrderReport.status = 1; // PFilled
+                matchedOrderReport.status = STATE_PFILLED; // PFilled
             } else {
-                matchedOrderReport.status = 2; // Filled
+                matchedOrderReport.status = STATE_FILLED; // Filled
             }
-            ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport, ExchangeApplication::outFilePath);
+            ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport);
 
             // Update order quantities (simplified logic)
             buyOrder.quantity -= curOrderReport.quantity;
@@ -227,12 +226,12 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
                 --i; // Adjust index after removal
             }
             if (curOrder.quantity == 0) {
-                curOrderReport.status = 2; // Filled
-                ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+                curOrderReport.status = STATE_FILLED; // Filled
+                ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
                 return;
             } else if (curOrder.quantity < initialQuantity) {
-                curOrderReport.status = 1; // PFilled
-                ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+                curOrderReport.status = STATE_PFILLED; // PFilled
+                ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
             }
         }
     }
@@ -240,11 +239,11 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
     if (curOrder.quantity == initialQuantity) {
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
-        curOrderReport.status = 0; // New
+        curOrderReport.status = STATE_NEW; // New
 
         executionReports.push_back(curOrderReport);
         std::cout << "Writing to the report" << std::endl;
-        ExchangeApplication::writeExecutionReportsToFile(curOrderReport, ExchangeApplication::outFilePath);
+        ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
         addOrder(curOrder);
     } else {
         addOrder(curOrder);
