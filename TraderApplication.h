@@ -1,13 +1,16 @@
 #ifndef C___PROJECT_TRADERAPPLICATION_H
 #define C___PROJECT_TRADERAPPLICATION_H
 
-#include "Order.h"
 #include <vector>
 #include <mutex>
 #include <condition_variable>
 #include <fstream>
 #include <iostream>
 #include <queue>
+#include <sstream>
+#include <chrono>
+#include <semaphore.h>
+#include "Order.h"
 
 class TraderApplication {
 private:

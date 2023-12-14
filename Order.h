@@ -3,11 +3,16 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
+
+#include "utils.h"
+
+#define SIDE_SELL 1
+#define  SIDE_BUY 2
 
 class Order {
 private:
     std::string orderId;
-    std::vector<std::string> instrumentList;
 public:
     std::string clientOrderId;
     std::string instrument;

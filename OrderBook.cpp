@@ -1,8 +1,3 @@
-// OrderBook.cpp
-
-#include <iostream>
-#include <algorithm>
-#include "OrderBook.h"
 #include "ExchangeApplication.h"
 
 int OrderBook::curId = 1;
@@ -20,8 +15,8 @@ void OrderBook::addOrder(const Order& order) {
 
 void OrderBook::addBuyOrder(const Order& order) {
     // Add buy order to the corresponding instrument's buy order book
-    buyOrders[order.instrument].push_back(order);
-    std::sort(buyOrders[order.instrument].begin(), buyOrders[order.instrument].end(),[ ]( const Order& lhs, const Order& rhs )
+    buyOrders.push_back(order);
+    std::sort(buyOrders.begin(), buyOrders.end(),[ ]( const Order& lhs, const Order& rhs )
     {
         return lhs.price > rhs.price;
     });
@@ -36,8 +31,8 @@ void OrderBook::addBuyOrder(const Order& order) {
 
 void OrderBook::addSellOrder(const Order& order) {
     // Add sell order to the corresponding instrument's sell order book
-    sellOrders[order.instrument].push_back(order);
-    std::sort(sellOrders[order.instrument].begin(), sellOrders[order.instrument].end(),[ ]( const Order& lhs, const Order& rhs )
+    sellOrders.push_back(order);
+    std::sort(sellOrders.begin(), sellOrders.end(),[ ]( const Order& lhs, const Order& rhs )
     {
         return lhs.price < rhs.price;
     });
@@ -50,8 +45,7 @@ void OrderBook::addSellOrder(const Order& order) {
               << std::endl;
 }
 
-void OrderBook::processOrders(Order& order) {
-    std::cout<<"Order side: "<<order.side<<std::endl;
+void OrderBook::processOrder(Order& order) {
     order.setOrderId(OrderBook::curId);
     OrderBook::curId++;
 
@@ -85,13 +79,13 @@ void OrderBook::processOrders(Order& order) {
 void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderReport) {
     int initialQuantity = curOrder.quantity;
     std::cout << "\nMatching buy order..." << std::endl;
-    std::vector<Order>&ordersForInstrument = sellOrders[curOrder.instrument];
+    std::vector<Order>&ordersForInstrument = sellOrders;
 
 
     curOrderReport.setTransactionTime("20230101-120000.000");
 
     if (ordersForInstrument.empty()) {
-        std::cout << "\nNot enough orders for matching, skip!" << std::endl;
+
         // Not enough orders for matching, skip
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
@@ -173,7 +167,7 @@ void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderRepo
 void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderReport) {
     int initialQuantity = curOrder.quantity;
     std::cout << "\nMatching sell order..." << std::endl;
-    std::vector<Order> &ordersForInstrument = buyOrders[curOrder.instrument];
+    std::vector<Order> &ordersForInstrument = buyOrders;
 
     curOrderReport.setTransactionTime("20230101-120000.000");
 
@@ -251,8 +245,8 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
 }
 
 void OrderBook::printOrderBook(const std::string& instrument) {
-    std::vector<Order> &buySide = buyOrders[instrument];
-    std::vector<Order> &sellSide = sellOrders[instrument];
+    std::vector<Order> &buySide = buyOrders;
+    std::vector<Order> &sellSide = sellOrders;
 
     std::cout << "*****************************************************************" << std::endl;
 
@@ -273,3 +267,5 @@ void OrderBook::printOrderBook(const std::string& instrument) {
     std::cout << "*****************************************************************" << std::endl;
 
 }
+
+OrderBook::OrderBook(const std::string instrument) : instrument(instrument) {}
