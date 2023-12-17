@@ -28,11 +28,11 @@ public:
 
     void printOrderBook();
 
-    void updateOrderBook(std::vector<Order> &orders, size_t index);
+    void updateOrderBook(std::vector<Order> &orders, size_t &index);
 
-    void executeOrder(Order &curOrder, ExecutionReport &curOrderReport, Order &oppositeOrder);
+    void executeOrder(Order &curOrder, ExecutionReport &curOrderReport, Order &pendingOrder, int side);
 
-    void matchingEngine(Order &curOrder, ExecutionReport &curOrderReport, std::vector<Order> &oppositeOrders, int side);
+    void matchingEngine(Order &curOrder, ExecutionReport &curOrderReport, std::vector<Order> &curSideOrders, std::vector<Order> &oppositeSideOrders);
 
     std::string getCurrentTime();
 

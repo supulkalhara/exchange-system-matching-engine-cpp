@@ -30,19 +30,33 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
             std::getline(lineStream, quantityStr, ',');
 
             // Convert side, quantity, and price to appropriate types
-            side = std::stoi(sideStr);
-            price = std::stod(priceStr);
-            quantity = std::stoi(quantityStr);
+            try {
+                side = std::stoi(sideStr);
+            } catch (...) {
+                side = NULL;
+            }
+
+            try {
+                price = std::stod(priceStr);
+            } catch (...) {
+                price = NULL;
+            }
+
+            try {
+                quantity = std::stoi(quantityStr);
+            } catch (...) {
+                quantity = NULL;
+            }
 
             Order order(clientOrderId, instrument, side, price, quantity);
 
-            std::cout << "Producing Order: "
-                      << "Client Order ID: " << order.clientOrderId
-                      << ", Instrument: " << order.instrument
-                      << ", Side: " << order.side
-                      << ", Price: " << order.price
-                      << ", Quantity: " << order.quantity
-                      << std::endl;
+//            std::cout << "Producing Order: "
+//                      << "Client Order ID: " << order.clientOrderId
+//                      << ", Instrument: " << order.instrument
+//                      << ", Side: " << order.side
+//                      << ", Price: " << order.price
+//                      << ", Quantity: " << order.quantity
+//                      << std::endl;
 
             ordersBuffer.push(order);
 
