@@ -10,12 +10,13 @@ void OrderBook::addOrder(const Order& order) {
         // Add sell order
         addSellOrder(order);
     }
-    std::cout << "\nEntered to OrderBook..." << std::endl;
 }
 
 void OrderBook::addBuyOrder(const Order& order) {
     // Add buy order to the corresponding instrument's buy order book
     buyOrders.push_back(order);
+
+    // Sort the order book based on the price
     std::sort(buyOrders.begin(), buyOrders.end(),[ ]( const Order& lhs, const Order& rhs )
     {
         return lhs.price > rhs.price;
@@ -32,6 +33,8 @@ void OrderBook::addBuyOrder(const Order& order) {
 void OrderBook::addSellOrder(const Order& order) {
     // Add sell order to the corresponding instrument's sell order book
     sellOrders.push_back(order);
+
+    // Sort the order book based on the price
     std::sort(sellOrders.begin(), sellOrders.end(),[ ]( const Order& lhs, const Order& rhs )
     {
         return lhs.price < rhs.price;
@@ -78,11 +81,17 @@ void OrderBook::processOrder(Order& order) {
 
 void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderReport) {
     int initialQuantity = curOrder.quantity;
-    std::cout << "\nMatching buy order..." << std::endl;
     std::vector<Order>&ordersForInstrument = sellOrders;
 
+    auto now = std::chrono::system_clock::now();
+    auto currentTime = std::chrono::system_clock::to_time_t(now);
+    struct std::tm* timeInfo = std::localtime(&currentTime);
 
-    curOrderReport.setTransactionTime("20230101-120000.000");
+    std::ostringstream oss;
+    oss << std::put_time(timeInfo, "%Y%m%d-%H%M%S") << "." << std::setfill('0') << std::setw(3)
+        << std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
+
+    curOrderReport.setTransactionTime(oss.str());
 
     if (ordersForInstrument.empty()) {
 
@@ -112,7 +121,7 @@ void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderRepo
 
             ExecutionReport matchedOrderReport(sellOrder, 0, "");
             matchedOrderReport.setOrderId(sellOrder.getOrderId());
-            matchedOrderReport.setTransactionTime("20230101-120000.000");
+            matchedOrderReport.setTransactionTime(oss.str());
             matchedOrderReport.clientOrderId = sellOrder.clientOrderId;
             matchedOrderReport.instrument = sellOrder.instrument;
             matchedOrderReport.side = SIDE_SELL; // Buy: 1, Sell: 2
@@ -169,7 +178,15 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
     std::cout << "\nMatching sell order..." << std::endl;
     std::vector<Order> &ordersForInstrument = buyOrders;
 
-    curOrderReport.setTransactionTime("20230101-120000.000");
+    auto now = std::chrono::system_clock::now();
+    auto currentTime = std::chrono::system_clock::to_time_t(now);
+    struct std::tm* timeInfo = std::localtime(&currentTime);
+
+    std::ostringstream oss;
+    oss << std::put_time(timeInfo, "%Y%m%d-%H%M%S") << "." << std::setfill('0') << std::setw(3)
+        << std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
+
+    curOrderReport.setTransactionTime(oss.str());
 
     if (ordersForInstrument.empty()) {
         std::cout << "\nNot enough orders for matching, skip!" << std::endl;
@@ -184,7 +201,6 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
         return;
     }
 
-    // Simplified matching logic (compare prices and execute if conditions met)
     for (size_t i = 0; i < ordersForInstrument.size(); ++i) {
         Order &buyOrder = ordersForInstrument[i];
 
@@ -197,7 +213,7 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
 
             ExecutionReport matchedOrderReport(buyOrder, 0, "");
             matchedOrderReport.setOrderId(buyOrder.getOrderId());
-            matchedOrderReport.setTransactionTime("20230101-120000.000");
+            matchedOrderReport.setTransactionTime(oss.str());
             matchedOrderReport.clientOrderId = buyOrder.clientOrderId;
             matchedOrderReport.instrument = buyOrder.instrument;
             matchedOrderReport.side = SIDE_BUY; // Buy: 1, Sell: 2
@@ -210,7 +226,7 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
             }
             ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport);
 
-            // Update order quantities (simplified logic)
+            // Update order quantities
             buyOrder.quantity -= curOrderReport.quantity;
             curOrder.quantity -= curOrderReport.quantity;
 
@@ -243,6 +259,8 @@ void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderRepor
         addOrder(curOrder);
     }
 }
+
+
 
 void OrderBook::printOrderBook(const std::string& instrument) {
     std::vector<Order> &buySide = buyOrders;
