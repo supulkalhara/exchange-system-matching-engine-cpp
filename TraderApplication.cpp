@@ -36,7 +36,7 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
 
             Order order(clientOrderId, instrument, side, price, quantity);
 
-            std::cout << "\nProducing Order: "
+            std::cout << "Producing Order: "
                       << "Client Order ID: " << order.clientOrderId
                       << ", Instrument: " << order.instrument
                       << ", Side: " << order.side
@@ -54,6 +54,6 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
     }
     finishedMutex.lock();
     finished = true;
-    std::cout << "Producer completed reading orders " << std::endl;
+    std::cout << "\nProducer completed reading orders\n" << std::endl;
     finishedMutex.unlock();
 }

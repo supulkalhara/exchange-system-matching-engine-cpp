@@ -21,7 +21,7 @@ public:
     std::string reason;
     std::string transactionTime;
 
-    ExecutionReport(const Order& order, int stat, const std::string& r);
+    ExecutionReport(const Order& order, int stat, std::string  r);
 
     void setOrderId(const std::string& id);
 

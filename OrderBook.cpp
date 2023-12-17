@@ -2,53 +2,18 @@
 
 int OrderBook::curId = 1;
 
-void OrderBook::addOrder(const Order& order) {
-    if (order.side == 1) {
-        // Add buy order
-        addBuyOrder(order);
-    } else if (order.side == 2) {
-        // Add sell order
-        addSellOrder(order);
-    }
-}
+OrderBook::OrderBook(const std::string instrument) : instrument(instrument) {}
 
-void OrderBook::addBuyOrder(const Order& order) {
-    // Add buy order to the corresponding instrument's buy order book
-    buyOrders.push_back(order);
+void OrderBook::addOrderToBook(const Order &order, std::vector<Order> &orders, bool isBuyOrder) {
+    orders.push_back(order);
 
     // Sort the order book based on the price
-    std::sort(buyOrders.begin(), buyOrders.end(),[ ]( const Order& lhs, const Order& rhs )
-    {
-        return lhs.price > rhs.price;
+    std::sort(orders.begin(), orders.end(), [isBuyOrder](const Order &lhs, const Order &rhs) {
+        return isBuyOrder ? (lhs.price > rhs.price) : (lhs.price < rhs.price);
     });
-    // Log the addition of a buy order
-    std::cout << "Buy Order Added: "
-              << "Client Order ID: " << order.clientOrderId
-              << ", Instrument: " << order.instrument
-              << ", Price: " << order.price
-              << ", Quantity: " << order.quantity
-              << std::endl;
 }
 
-void OrderBook::addSellOrder(const Order& order) {
-    // Add sell order to the corresponding instrument's sell order book
-    sellOrders.push_back(order);
-
-    // Sort the order book based on the price
-    std::sort(sellOrders.begin(), sellOrders.end(),[ ]( const Order& lhs, const Order& rhs )
-    {
-        return lhs.price < rhs.price;
-    });
-    // Log the addition of a sell order
-    std::cout << "Sell Order Added: "
-              << "Client Order ID: " << order.clientOrderId
-              << ", Instrument: " << order.instrument
-              << ", Price: " << order.price
-              << ", Quantity: " << order.quantity
-              << std::endl;
-}
-
-void OrderBook::processOrder(Order& order) {
+void OrderBook::processOrder(Order &order) {
     order.setOrderId(OrderBook::curId);
     OrderBook::curId++;
 
@@ -56,16 +21,17 @@ void OrderBook::processOrder(Order& order) {
     curOrderReport.setOrderId(order.getOrderId());
     curOrderReport.clientOrderId = order.clientOrderId;
     curOrderReport.instrument = order.instrument;
-    curOrderReport.side = order.side ; // Buy: 1, Sell: 2
+    curOrderReport.side = order.side; // Buy: 1, Sell: 2
 
     std::string validationResult = order.isValid();
-    if (validationResult != "OK"){
+    if (validationResult != "OK") {
         curOrderReport.price = order.price;
         curOrderReport.quantity = order.quantity;
         curOrderReport.status = STATE_REJECT; // Reject
         curOrderReport.reason = validationResult;
         ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
-        OrderBook::printOrderBook(order.instrument);
+        OrderBook::printOrderBook();
+        std::cerr << validationResult << " in the order: " << curOrderReport.clientOrderId  << std::endl;
         return;
     }
 
@@ -76,81 +42,51 @@ void OrderBook::processOrder(Order& order) {
         // Process buy orders
         processBuyOrders(order, curOrderReport);
     }
-    OrderBook::printOrderBook(order.instrument);
+    OrderBook::printOrderBook();
 }
 
 void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderReport) {
-    int initialQuantity = curOrder.quantity;
-    std::vector<Order>&ordersForInstrument = sellOrders;
+    std::vector<Order> &ordersForInstrument = sellOrders;
+    matchingEngine(curOrder, curOrderReport, ordersForInstrument, SIDE_SELL);
+}
 
+void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderReport) {
+    std::vector<Order> &ordersForInstrument = buyOrders;
+    matchingEngine(curOrder, curOrderReport, ordersForInstrument, SIDE_BUY);
+}
+
+void OrderBook::matchingEngine(Order &curOrder, ExecutionReport &curOrderReport, std::vector<Order> &oppositeOrders,
+                               int side) {
     auto now = std::chrono::system_clock::now();
-    auto currentTime = std::chrono::system_clock::to_time_t(now);
-    struct std::tm* timeInfo = std::localtime(&currentTime);
+    std::string currentTime = getCurrentTime();
+    curOrderReport.setTransactionTime(currentTime);
 
-    std::ostringstream oss;
-    oss << std::put_time(timeInfo, "%Y%m%d-%H%M%S") << "." << std::setfill('0') << std::setw(3)
-        << std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
-
-    curOrderReport.setTransactionTime(oss.str());
-
-    if (ordersForInstrument.empty()) {
-
+    if (oppositeOrders.empty()) {
         // Not enough orders for matching, skip
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
         curOrderReport.status = STATE_NEW; // New
 
-        executionReports.push_back(curOrderReport);
-        std::cout<<"Writing to the report"<<std::endl;
         ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
-
-        addOrder(curOrder);
+        addOrderToBook(curOrder, oppositeOrders, (side == SIDE_BUY));
         return;
     }
 
     // Simplified matching logic (compare prices and execute if conditions met)
-    for (size_t i = 0; i < ordersForInstrument.size(); ++i) {
-        Order& sellOrder = ordersForInstrument[i];
+    for (size_t i = 0; i < oppositeOrders.size(); ++i) {
+        Order &oppositeOrder = oppositeOrders[i];
 
-        if (sellOrder.price <= curOrder.price) {
-            std::cout << "\nsellOrder.price <= curOrder.price" << std::endl;
+        if ((side == SIDE_SELL && oppositeOrder.price <= curOrder.price) ||
+            (side == SIDE_BUY && oppositeOrder.price >= curOrder.price)) {
 
-            // Execute the order (simplified execution)
-            curOrderReport.price = sellOrder.price;
-            curOrderReport.quantity = std::min(sellOrder.quantity, curOrder.quantity);
-
-            ExecutionReport matchedOrderReport(sellOrder, 0, "");
-            matchedOrderReport.setOrderId(sellOrder.getOrderId());
-            matchedOrderReport.setTransactionTime(oss.str());
-            matchedOrderReport.clientOrderId = sellOrder.clientOrderId;
-            matchedOrderReport.instrument = sellOrder.instrument;
-            matchedOrderReport.side = SIDE_SELL; // Buy: 1, Sell: 2
-            matchedOrderReport.price = sellOrder.price;
-            matchedOrderReport.quantity = std::min(sellOrder.quantity, curOrder.quantity);
-
-            if (matchedOrderReport.quantity < sellOrder.quantity){
-                matchedOrderReport.status = STATE_PFILLED; // PFilled
-            } else {
-                matchedOrderReport.status = STATE_FILLED; // Filled
-            }
-
-            ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport);
-
-            // Update order quantities (simplified logic)
-            sellOrder.quantity -= curOrderReport.quantity;
-            curOrder.quantity -= curOrderReport.quantity;
-
-            // Remove filled orders
-            if (sellOrder.quantity == 0) {
-                ordersForInstrument.erase(ordersForInstrument.begin() + i);
-                --i; // Adjust index after removal
-            }
+            executeOrder(curOrder, curOrderReport, oppositeOrder);
+            updateOrderBook(oppositeOrders, i);
 
             if (curOrder.quantity == 0) {
                 curOrderReport.status = STATE_FILLED; // Filled
                 ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
                 return;
-            } else if (curOrder.quantity < initialQuantity){
+            } else if (curOrder.quantity < curOrderReport.quantity) {
                 curOrderReport.status = STATE_PFILLED; // PFilled
                 ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
             }
@@ -159,131 +95,112 @@ void OrderBook::processSellOrders(Order &curOrder, ExecutionReport &curOrderRepo
         }
     }
 
-    if (curOrder.quantity == initialQuantity) {
+    if (curOrder.quantity == curOrderReport.quantity) {
         curOrderReport.price = curOrder.price;
         curOrderReport.quantity = curOrder.quantity;
         curOrderReport.status = STATE_NEW; // New
 
-        executionReports.push_back(curOrderReport);
-        std::cout<<"Writing to the report"<<std::endl;
         ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
-        addOrder(curOrder);
+        addOrderToBook(curOrder, oppositeOrders, (side == SIDE_BUY));
     } else {
-        addOrder(curOrder);
+        addOrderToBook(curOrder, oppositeOrders, (side == SIDE_BUY));
     }
 }
 
-void OrderBook::processBuyOrders(Order &curOrder, ExecutionReport &curOrderReport) {
-    int initialQuantity = curOrder.quantity;
-    std::cout << "\nMatching sell order..." << std::endl;
-    std::vector<Order> &ordersForInstrument = buyOrders;
+void OrderBook::executeOrder(Order &curOrder, ExecutionReport &curOrderReport, Order &oppositeOrder) {
+    curOrderReport.price = oppositeOrder.price;
+    curOrderReport.quantity = std::min(oppositeOrder.quantity, curOrder.quantity);
 
+    ExecutionReport matchedOrderReport(oppositeOrder, 0, "");
+    matchedOrderReport.setOrderId(oppositeOrder.getOrderId());
+    matchedOrderReport.setTransactionTime(getCurrentTime());
+    matchedOrderReport.clientOrderId = oppositeOrder.clientOrderId;
+    matchedOrderReport.instrument = oppositeOrder.instrument;
+    matchedOrderReport.side = curOrderReport.side;
+    matchedOrderReport.price = oppositeOrder.price;
+    matchedOrderReport.quantity = curOrderReport.quantity;
+
+    if (matchedOrderReport.quantity < oppositeOrder.quantity) {
+        matchedOrderReport.status = STATE_PFILLED; // PFilled
+    } else {
+        matchedOrderReport.status = STATE_FILLED; // Filled
+    }
+
+    ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport);
+
+    oppositeOrder.quantity -= curOrderReport.quantity;
+    curOrder.quantity -= curOrderReport.quantity;
+}
+
+void OrderBook::updateOrderBook(std::vector<Order> &orders, size_t index) {
+    if (orders[index].quantity == 0) {
+        orders.erase(orders.begin() + index);
+    }
+}
+
+
+void OrderBook::printOrderBook() {
+    std::vector<Order> &buySide = buyOrders;
+    std::vector<Order> &sellSide = sellOrders;
+
+    std::cout << std::setw(78) << std::setfill('=') << "" << std::endl;
+
+    // Buy Side Header
+    std::cout << std::setfill(' ') << "| " << std::setw(18) << std::left << "Buy Side"
+              << "| " << std::setw(20) << "OrderId"
+              << "| " << std::setw(15) << "Qty"
+              << "| " << std::setw(15) << "Price"
+              << " |" << std::endl;
+
+    std::cout << std::setw(78) << std::setfill('=') << "" << std::endl;
+
+    // Buy Side Data
+    for (const auto &obj: buySide) {
+        std::cout << "| " << std::setw(18) << std::setfill(' ') << std::left << ""
+                  << "| " << std::setw(20) << std::setfill(' ') << obj.getOrderId()
+                  << "| " << std::setw(15) << std::setfill(' ') << obj.quantity
+                  << "| " << std::setw(15) << std::setfill(' ') << obj.price
+                  << " |" << std::endl;
+    }
+
+    std::cout << std::setw(78) << std::setfill('=') << "" << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+
+    // Sell Side Header
+    std::cout << std::setw(78) << std::setfill('=') << "" << std::endl;
+
+    std::cout << "| " << std::setw(18) << std::setfill(' ') << std::left << "Sell Side"
+              << "| " << std::setw(15) << std::setfill(' ') << "Price"
+              << "| " << std::setw(15) << std::setfill(' ') << "Qty"
+              << "| " << std::setw(20) << std::setfill(' ') << "OrderId"
+              << " |" << std::endl;
+
+    std::cout << std::setw(78) << std::setfill('=') << "" << std::endl;
+
+    // Sell Side Data
+    for (const auto &obj: sellSide) {
+        std::cout << "| " << std::setw(18) << std::setfill(' ') << std::left << ""
+                  << "| " << std::setw(15) << std::setfill(' ') << obj.price
+                  << "| " << std::setw(15) << std::setfill(' ') << obj.quantity
+                  << "| " << std::setw(20) << std::setfill(' ') << obj.getOrderId()
+                  << " |" << std::endl;
+    }
+
+    std::cout << std::setw(78) << std::setfill('=') << "" << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+}
+
+std::string OrderBook::getCurrentTime() {
     auto now = std::chrono::system_clock::now();
     auto currentTime = std::chrono::system_clock::to_time_t(now);
-    struct std::tm* timeInfo = std::localtime(&currentTime);
+    struct std::tm *timeInfo = std::localtime(&currentTime);
 
     std::ostringstream oss;
     oss << std::put_time(timeInfo, "%Y%m%d-%H%M%S") << "." << std::setfill('0') << std::setw(3)
         << std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
 
-    curOrderReport.setTransactionTime(oss.str());
-
-    if (ordersForInstrument.empty()) {
-        std::cout << "\nNot enough orders for matching, skip!" << std::endl;
-        // Not enough orders for matching, skip
-        curOrderReport.price = curOrder.price;
-        curOrderReport.quantity = curOrder.quantity;
-        curOrderReport.status = STATE_NEW; // New
-
-        ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
-
-        addOrder(curOrder);
-        return;
-    }
-
-    for (size_t i = 0; i < ordersForInstrument.size(); ++i) {
-        Order &buyOrder = ordersForInstrument[i];
-
-        if (buyOrder.price >= curOrder.price) {
-            std::cout << "\nbuyOrder.price <= curOrder.price" << std::endl;
-
-            // Execute the order (simplified execution)
-            curOrderReport.price = buyOrder.price;
-            curOrderReport.quantity = std::min(buyOrder.quantity, curOrder.quantity);
-
-            ExecutionReport matchedOrderReport(buyOrder, 0, "");
-            matchedOrderReport.setOrderId(buyOrder.getOrderId());
-            matchedOrderReport.setTransactionTime(oss.str());
-            matchedOrderReport.clientOrderId = buyOrder.clientOrderId;
-            matchedOrderReport.instrument = buyOrder.instrument;
-            matchedOrderReport.side = SIDE_BUY; // Buy: 1, Sell: 2
-            matchedOrderReport.price = buyOrder.price;
-            matchedOrderReport.quantity = std::min(buyOrder.quantity, curOrder.quantity);
-            if (matchedOrderReport.quantity < buyOrder.quantity) {
-                matchedOrderReport.status = STATE_PFILLED; // PFilled
-            } else {
-                matchedOrderReport.status = STATE_FILLED; // Filled
-            }
-            ExchangeApplication::writeExecutionReportsToFile(matchedOrderReport);
-
-            // Update order quantities
-            buyOrder.quantity -= curOrderReport.quantity;
-            curOrder.quantity -= curOrderReport.quantity;
-
-            // Remove filled orders
-            if (buyOrder.quantity == 0) {
-                ordersForInstrument.erase(ordersForInstrument.begin() + i);
-                --i; // Adjust index after removal
-            }
-            if (curOrder.quantity == 0) {
-                curOrderReport.status = STATE_FILLED; // Filled
-                ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
-                return;
-            } else if (curOrder.quantity < initialQuantity) {
-                curOrderReport.status = STATE_PFILLED; // PFilled
-                ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
-            }
-        }
-    }
-
-    if (curOrder.quantity == initialQuantity) {
-        curOrderReport.price = curOrder.price;
-        curOrderReport.quantity = curOrder.quantity;
-        curOrderReport.status = STATE_NEW; // New
-
-        executionReports.push_back(curOrderReport);
-        std::cout << "Writing to the report" << std::endl;
-        ExchangeApplication::writeExecutionReportsToFile(curOrderReport);
-        addOrder(curOrder);
-    } else {
-        addOrder(curOrder);
-    }
+    return oss.str();
 }
 
-
-
-void OrderBook::printOrderBook(const std::string& instrument) {
-    std::vector<Order> &buySide = buyOrders;
-    std::vector<Order> &sellSide = sellOrders;
-
-    std::cout << "*****************************************************************" << std::endl;
-
-    std::cout << "Buy Side" << std::endl;
-    std::cout << "OrderId\tQty\tPrice\t" << std::endl;
-    for(auto &obj: buySide){
-        std::cout << obj.getOrderId() << "\t" << obj.quantity << "\t" << obj.price << std::endl;
-    }
-
-    std::cout << "*****************************************************************" << std::endl;
-
-    std::cout << "Sell Side" << std::endl;
-    std::cout << "Price\tQty\tOrderId" << std::endl;
-    for(auto &obj: sellSide){
-        std::cout << obj.price << "\t" << obj.quantity << "\t" << obj.getOrderId() << std::endl;
-    }
-
-    std::cout << "*****************************************************************" << std::endl;
-
-}
-
-OrderBook::OrderBook(const std::string instrument) : instrument(instrument) {}

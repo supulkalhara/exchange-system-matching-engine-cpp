@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <utility>
 
 #include "utils.h"
 
@@ -19,12 +20,14 @@ public:
     int side;
     double price;
     int quantity;
+
     void setOrderId(int id);
-    std::string getOrderId();
 
-    Order(const std::string& id, const std::string& instr, int s, double p, int q);
+    std::string getOrderId() const;
 
-    std::string isValid();
+    Order(std::string id, std::string instr, int s, double p, int q);
+
+    std::string isValid() const;
 };
 
 #endif //C___PROJECT_ORDER_H

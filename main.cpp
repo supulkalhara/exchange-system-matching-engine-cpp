@@ -22,20 +22,20 @@ int main(int argc, char **argv) {
 
     // Initialize semaphore with 0 to start as locked
     sem_init(&ordersSem, 0, 0);
-    std::string inFilePath = argv[1];
-    std::string outFilePath = argv[2];
-//    "D:\\lseg_project\\exchange-system-matching-engine-cpp\\inputs\\example6.csv";
-//    "D:\\lseg_project\\exchange-system-matching-engine-cpp\\outputs\\exec_report_example6.csv";
+
+    std::string inFilePath = argv[1]; //    "{path to the src file}\\inputs\\orders.csv";
+    std::string outFilePath = argv[2]; //    "{path to the src file}\\outputs\\execution_rep.csv";
+
     finished = false;
 
     try {
-        std::unordered_map<std::string, OrderBook*> orderBooks;
+        std::unordered_map<std::string, OrderBook *> orderBooks;
         TraderApplication traderApp;
         ExchangeApplication exchangeApp;
         ExchangeApplication::setOutFilePath(outFilePath);
 
-        for (const std::string& instrument: instruments) {
-            auto* ob = new OrderBook(instrument);
+        for (const std::string &instrument: instruments) {
+            auto *ob = new OrderBook(instrument);
             orderBooks.emplace(instrument, ob);
         }
 
@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 
         std::thread consumer([&exchangeApp, &orderBooks]() {
             exchangeApp.handleOrders(orderBooks, std::ref(ordersBuffer), std::ref(ordersSem), std::ref(finishedMutex),
-                                      finished);
+                                     finished);
         });
 
         producer.join();
