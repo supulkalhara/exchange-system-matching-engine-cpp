@@ -1,26 +1,30 @@
-// ExchangeApplication.h
-
 #ifndef C___PROJECT_EXCHANGEAPPLICATION_H
 #define C___PROJECT_EXCHANGEAPPLICATION_H
 
-#include "Order.h"
 #include <vector>
 #include <mutex>
 #include <fstream>
 #include <queue>
+#include <iostream>
+#include <iostream>
+#include <utility>
 #include <semaphore.h>
-#include "ExecutionReport.h"
+#include <functional>
 #include "OrderBook.h"
+#include "Order.h"
+#include "ExecutionReport.h"
 
 class ExchangeApplication {
 private:
     std::vector<ExecutionReport> executionReports;
-    std::mutex mtx;
     static std::string outFilePath;
 public:
     static void writeExecutionReportsToFile(const ExecutionReport &executionReport);
+
     static void setOutFilePath(std::string filePath);
-    void processOrders(OrderBook orderBook, std::queue<Order> &ordersBuffer, sem_t &ordersSem, std::mutex &bufferMutex, bool &finished);
+
+    static void handleOrders(std::unordered_map<std::string, OrderBook *> &orderBooks, std::queue<Order> &ordersBuffer,
+                             sem_t &ordersSem, std::mutex &finishedMutex, bool &finished);
 };
 
 #endif //C___PROJECT_EXCHANGEAPPLICATION_H

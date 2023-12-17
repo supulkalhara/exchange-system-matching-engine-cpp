@@ -1,19 +1,13 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <mutex>
-#include <vector>
-#include <semaphore.h>
 #include "TraderApplication.h"
 
 
-void TraderApplication::produceOrders(const std::string &filePath, std::queue<Order>& ordersBuffer, sem_t& ordersSem, std::mutex& finishedMutex, bool &finished) {
+void TraderApplication::produceOrders(const std::string &filePath, std::queue<Order> &ordersBuffer, sem_t &ordersSem,
+                                      std::mutex &finishedMutex, bool &finished) {
     try {
-        std::cout << "Producer reading orders" << std::endl;
         std::ifstream file(filePath);
 
         if (!file.is_open()) {
-            throw std::runtime_error("Error: Unable to open file 'example2.csv'");
+            throw std::runtime_error("Error: Unable to open file 'example6.csv'");
         }
 
         // Skip the header line
@@ -36,28 +30,37 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
             std::getline(lineStream, quantityStr, ',');
 
             // Convert side, quantity, and price to appropriate types
-            side = std::stoi(sideStr);
-            price = std::stod(priceStr);
-            quantity = std::stoi(quantityStr);
+            try {
+                side = std::stoi(sideStr);
+            } catch (...) {
+                side = NULL;
+            }
+
+            try {
+                price = std::stod(priceStr);
+            } catch (...) {
+                price = NULL;
+            }
+
+            try {
+                quantity = std::stoi(quantityStr);
+            } catch (...) {
+                quantity = NULL;
+            }
 
             Order order(clientOrderId, instrument, side, price, quantity);
 
-            std::cout << "\nProducing Order: "
-                      << "Client Order ID: " << order.clientOrderId
-                      << ", Instrument: " << order.instrument
-                      << ", Side: " << order.side
-                      << ", Price: " << order.price
-                      << ", Quantity: " << order.quantity
-                      << std::endl;
+//            std::cout << "Producing Order: "
+//                      << "Client Order ID: " << order.clientOrderId
+//                      << ", Instrument: " << order.instrument
+//                      << ", Side: " << order.side
+//                      << ", Price: " << order.price
+//                      << ", Quantity: " << order.quantity
+//                      << std::endl;
 
-            {
-//                std::lock_guard<std::mutex> lock(bufferMutex);
-                std::cout << "Pushed to the orders buffer" << std::endl;
-                ordersBuffer.push(order);
-            }
+            ordersBuffer.push(order);
 
             // Notify the consumer about the new order
-            std::cout << "Notifying the consumer about the new order...\n" << std::endl;
             sem_post(&ordersSem);
         }
     } catch (const std::exception &e) {
@@ -65,5 +68,6 @@ void TraderApplication::produceOrders(const std::string &filePath, std::queue<Or
     }
     finishedMutex.lock();
     finished = true;
+    std::cout << "\nProducer completed reading orders\n" << std::endl;
     finishedMutex.unlock();
 }

@@ -1,13 +1,8 @@
-#include <iostream>
-#include <queue>
-#include <semaphore.h>
-#include <functional>
-#include <string>
-#include <utility>
 #include "ExchangeApplication.h"
-#include "OrderBook.h"
 
 std::string ExchangeApplication::outFilePath;
+static std::ostringstream buffer;
+
 
 void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &executionReport) {
     std::ofstream file(outFilePath, std::ios_base::app);
@@ -16,7 +11,7 @@ void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &exe
     }
 
     std::string status = "New";
-    if (executionReport.status == STATE_PFILLED){
+    if (executionReport.status == STATE_PFILLED) {
         status = "PFill";
     } else if (executionReport.status == STATE_FILLED) {
         status = "Fill";
@@ -25,15 +20,35 @@ void ExchangeApplication::writeExecutionReportsToFile(const ExecutionReport &exe
     }
 
     file << executionReport.clientOrderId << " " << executionReport.orderId << " " << executionReport.instrument
-     << " " << executionReport.side << " " << executionReport.price << " " << executionReport.quantity
-     << " " << status << " " << executionReport.reason << " " << executionReport.transactionTime << std::endl;
+         << " " << executionReport.side << " " << executionReport.price << " " << executionReport.quantity
+         << " " << status << " " << executionReport.reason << " " << executionReport.transactionTime << std::endl;
     file.close();
+
+// To optimize the file I/O operations
+
+//    buffer << executionReport.clientOrderId << " " << executionReport.orderId << " "
+//           << executionReport.instrument << " " << executionReport.side << " "
+//           << executionReport.price << " " << executionReport.quantity << " "
+//           << status << " " << executionReport.reason << " " << executionReport.transactionTime << std::endl;
+//
+//
+//    // Flush the buffer and write to the file if it exceeds a certain size or if you want to control when the write occurs
+//    if (buffer.tellp() > 1024) { // Adjust the buffer size as needed
+//        file.open(outFilePath, std::ios_base::app);
+//        if (!file.is_open()) {
+//            throw std::runtime_error("Error: Unable to open file " + outFilePath);
+//        }
+//
+//        file << buffer.str();
+//        file.close();
+//        buffer.str("");
+//    }
 }
 
-void ExchangeApplication::processOrders(OrderBook orderBook, std::queue<Order>& ordersBuffer, sem_t& ordersSem, std::mutex& finishedMutex, bool &finished) {
+void ExchangeApplication::handleOrders(std::unordered_map<std::string, OrderBook *> &orderBooks,
+                                       std::queue<Order> &ordersBuffer, sem_t &ordersSem, std::mutex &finishedMutex,
+                                       bool &finished) {
     try {
-        std::cout << "\nConsumer checking for orders..." << std::endl;
-
         while (true) {
             finishedMutex.lock();
             if (finished && ordersBuffer.empty()) {
@@ -41,30 +56,27 @@ void ExchangeApplication::processOrders(OrderBook orderBook, std::queue<Order>& 
                 break;
             }
             finishedMutex.unlock();
+
             // Wait for a new order
             sem_wait(&ordersSem);
-            std::cout << "\nConsumer is in the buffer..." << std::endl;
 
             // Get the order from the buffer
             Order order("", "", 0, 0.0, 0);
+
             if (!ordersBuffer.empty()) {
                 order = ordersBuffer.front();
-                std::cout << "\n###  Order found: " << order.clientOrderId << "###" << std::endl;
                 ordersBuffer.pop();
-            }
 
-            // Process the order in the OrderBook
-            orderBook.processOrders(order);
+                // Process the order in the OrderBook
+                orderBooks[order.instrument]->processOrder(order);
+            }
         }
 
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Error in consumer thread: " << e.what() << std::endl;
     }
-
-    std::cout << "\n########\nAll Orders have been processed...\n########\n" << std::endl;
-
 }
 
- void ExchangeApplication::setOutFilePath(std::string filePath) {
-    ExchangeApplication::outFilePath = filePath;
+void ExchangeApplication::setOutFilePath(std::string filePath) {
+    ExchangeApplication::outFilePath = std::move(filePath);
 }

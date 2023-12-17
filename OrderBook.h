@@ -1,33 +1,42 @@
-//
-// Created by agskp on 12/6/2023.
-//
-
 #ifndef C___PROJECT_ORDERBOOK_H
 #define C___PROJECT_ORDERBOOK_H
 
-#define SIDE_SELL 1
-#define  SIDE_BUY 2
-
 #include <unordered_map>
 #include <vector>
+#include <iostream>
+#include <algorithm>
+#include <iomanip>
 #include "Order.h"
 #include "ExecutionReport.h"
 
 class OrderBook {
 private:
-    std::unordered_map<std::string, std::vector<Order>> buyOrders; // Map of instrument to buy orders
-    std::unordered_map<std::string, std::vector<Order>> sellOrders; // Map of instrument to sell orders
+    std::vector<Order> buyOrders; // Map of instrument to buy orders
+    std::vector<Order> sellOrders; // Map of instrument to sell orders
     std::vector<ExecutionReport> executionReports;  // Vector to store execution reports
     static int curId;
+    std::string instrument;
 
 public:
-    void addOrder(const Order& order);
-    void addBuyOrder(const Order& order);
-    void addSellOrder(const Order& order);
+    explicit OrderBook(const std::string instrument);
+
     void processBuyOrders(Order &curOrder, ExecutionReport &curOrderReport);
-    void processSellOrders(Order &curOrder,  ExecutionReport &curOrderReport);
-    void processOrders(Order& order);
-    void printOrderBook(const std::string& instrument);
+
+    void processSellOrders(Order &curOrder, ExecutionReport &curOrderReport);
+
+    void processOrder(Order &order);
+
+    void printOrderBook();
+
+    void updateOrderBook(std::vector<Order> &orders, size_t &index);
+
+    void executeOrder(Order &curOrder, ExecutionReport &curOrderReport, Order &pendingOrder, int side);
+
+    void matchingEngine(Order &curOrder, ExecutionReport &curOrderReport, std::vector<Order> &curSideOrders, std::vector<Order> &oppositeSideOrders);
+
+    std::string getCurrentTime();
+
+    void addOrderToBook(const Order &order, std::vector<Order> &orders, bool isBuyOrder);
 };
 
 #endif //C___PROJECT_ORDERBOOK_H
